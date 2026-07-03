@@ -32,32 +32,44 @@ await connectDB();
 
 const app = express();
 
-console.log('Latest server.js loaded with root health route');
+console.log('Latest server.js loaded with Vercel CORS fix');
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  process.env.FRONTEND_URL
-].filter(Boolean);
-
+/* Security */
 app.use(
   helmet({
     crossOriginResourcePolicy: false
   })
 );
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(null, false);
-      }
-    },
-    credentials: true
-  })
-);
+/* CORS Fix For Localhost + Vercel Frontend */
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://takora-task-frontend.vercel.app',
+  'https://takora-task-frontend-5t6j.vercel.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
 
+const corsOptions = {
+  origin(origin, callback) {
+    const isVercelApp = origin && /^https:\/\/.*\.vercel\.app$/.test(origin);
+
+    if (!origin || allowedOrigins.includes(origin) || isVercelApp) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error(`CORS blocked: ${origin}`));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+/* Middlewares */
 app.use(compression());
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
